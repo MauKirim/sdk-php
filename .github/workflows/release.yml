@@ -56,9 +56,11 @@ jobs:
 
           if [ "$create_code" != "200" ] && [ "$create_code" != "202" ]; then
             if grep -q 'already claimed' /tmp/create.json; then
-              echo "::error::The 'maukirim' vendor namespace is owned by another Packagist account." \
-                "Add '${PACKAGIST_USERNAME}' as a maintainer of https://packagist.org/packages/maukirim/open-api," \
-                "or claim the namespace at https://packagist.org/contact/vendor-claim?vendor=maukirim." \
+              # Literal namespace: the secret is masked in annotations, which hides the URL otherwise.
+              echo "::error::The 'maukirim' vendor namespace on Packagist is owned by another account." \
+                "Either add the PACKAGIST_USERNAME account as a maintainer of" \
+                "https://packagist.org/packages/maukirim/open-api (its current maintainer), or claim" \
+                "the namespace at https://packagist.org/contact/vendor-claim?vendor=maukirim." \
                 "Then re-run this job; no new tag is needed."
               exit 1
             fi
