@@ -46,20 +46,35 @@ jobs:
           repo='{"repository":{"url":"https://github.com/MauKirim/sdk-php"}}'
           api='https://packagist.org/api'
 
-          # A first release has to create the package; later tags only need an update.
-          code="$(curl -sS -o /tmp/create.json -w '%{http_code}' -X POST \
+          # The first release has to create the package; later tags only need an update.
+          create_code="$(curl -sS -o /tmp/create.json -w '%{http_code}' -X POST \
             "${api}/create-package?username=${PACKAGIST_USERNAME}&apiToken=${PACKAGIST_TOKEN}" \
             -H 'Content-Type: application/json' -d "$repo")"
-          echo "create-package -> HTTP $code"
+          echo "create-package -> HTTP $create_code"
           cat /tmp/create.json || true
           echo
 
-          if [ "$code" != "200" ] && [ "$code" != "202" ]; then
-            echo "::notice::create-package returned $code (usually 'already exists'); falling back to update"
+          if [ "$create_code" != "200" ] && [ "$create_code" != "202" ]; then
+            if grep -q 'already claimed' /tmp/create.json; then
+              echo "::error::The 'maukirim' vendor namespace is owned by another Packagist account." \
+                "Add '${PACKAGIST_USERNAME}' as a maintainer of https://packagist.org/packages/maukirim/open-api," \
+                "or claim the namespace at https://packagist.org/contact/vendor-claim?vendor=maukirim." \
+                "Then re-run this job; no new tag is needed."
+              exit 1
+            fi
+            echo "::notice::create-package returned $create_code; falling back to update-package"
           fi
 
-          curl -fsS -X POST \
+          update_code="$(curl -sS -o /tmp/update.json -w '%{http_code}' -X POST \
             "${api}/update-package?username=${PACKAGIST_USERNAME}&apiToken=${PACKAGIST_TOKEN}" \
-            -H 'Content-Type: application/json' -d "$repo"
+            -H 'Content-Type: application/json' -d "$repo")"
+          echo "update-package -> HTTP $update_code"
+          cat /tmp/update.json || true
           echo
-          echo "https://packagist.org/packages/maukirim/sdk"
+
+          if [ "$update_code" != "200" ] && [ "$update_code" != "202" ]; then
+            echo "::error::Packagist refused the update; see the response above."
+            exit 1
+          fi
+
+          echo "Published: https://packagist.org/packages/maukirim/sdk"
